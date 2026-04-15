@@ -18,6 +18,9 @@ namespace cwiczenia6.Controllers
                 Id = 1,
                 Name="Wykladowa1",
                 BuildingCode="A",
+                Capacity=250,
+                HasProjector=true,
+                IsActive=true,
             },
             new Room(),
             new Room(),
@@ -31,7 +34,7 @@ namespace cwiczenia6.Controllers
 
         public IActionResult Get([FromRoute] int id)
         {
-            var room = rooms.FirstOrDefault(x => x.id == id);
+            var room = rooms.FirstOrDefault(x => x.Id == id);
             if (room == null)
             {
                 return NotFound();
@@ -44,9 +47,9 @@ namespace cwiczenia6.Controllers
         {
             var room=new Room()
             {
-                id=rooms.Count+1,
-                Name=createRoomDTO.name,
+                Id=rooms.Count+1,
             };
+            return CreatedAtAction(nameof(Get), new { id = room.Id }, room);
         }
     }
 }
