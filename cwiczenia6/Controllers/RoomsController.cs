@@ -21,6 +21,7 @@ namespace cwiczenia6.Controllers
                 Capacity=250,
                 HasProjector=true,
                 IsActive=true,
+                Floor = 0
             },
             new Room()
             {
@@ -30,6 +31,7 @@ namespace cwiczenia6.Controllers
                 Capacity=35,
                 HasProjector=true,
                 IsActive=true,
+                Floor = 2
             },
             new Room()
             {
@@ -39,14 +41,28 @@ namespace cwiczenia6.Controllers
                 Capacity=15,
                 HasProjector=false,
                 IsActive=false,
+                Floor = 1
             },
         };
         [HttpGet]
-        public IActionResult Get()
+        public IActionResult Get([FromQuery] int? minCapacity, [FromQuery] bool? hasProjector, [FromQuery] bool? activeOnly)
         {
-            return Ok(rooms);
-            //404 Not Found
-            return NotFound();
+            var query=rooms.AsQueryable();
+            if (minCapacity.HasValue)
+            {
+                query = query.Where(x => x.Capacity >= minCapacity.Value);
+            }
+
+            if (hasProjector.HasValue)
+            {
+                query = query.Where(x => x.HasProjector == hasProjector.Value);
+            }
+
+            if (activeOnly.HasValue)
+            {
+                query = query.Where(x => x.IsActive == activeOnly.Value);
+            }
+            return Ok(query.ToList());
         }
         [HttpGet("{id}")]
         public IActionResult Get([FromRoute] int id)
@@ -57,28 +73,6 @@ namespace cwiczenia6.Controllers
                 return NotFound();
             }
             return Ok(room);
-        }
-
-        [HttpGet("filter")]
-        public IActionResult Filter([FromQuery] int? roomCapacity, [FromQuery] bool? hasProjector,
-            [FromQuery] bool? isActive)
-        {
-            var query=rooms.AsQueryable();
-            if (roomCapacity.HasValue)
-            {
-                query = query.Where(x => x.Capacity >= roomCapacity.Value);
-            }
-
-            if (hasProjector.HasValue)
-            {
-                query = query.Where(x => x.HasProjector == hasProjector.Value);
-            }
-
-            if (isActive.HasValue)
-            {
-                query = query.Where(x => x.IsActive == isActive.Value);
-            }
-            return Ok(query.ToList());
         }
         [HttpGet("building/{buildingCode}")]
         public IActionResult Get([FromRoute] string buildingCode)
@@ -92,13 +86,18 @@ namespace cwiczenia6.Controllers
         {
             var room=new Room()
             {
-                Id=rooms.Count+1,
+                Id=rooms.Max(x=>x.Id)+1,
                 Name=createRoomDTO.Name,
                 BuildingCode=createRoomDTO.BuildingCode,
                 Capacity=createRoomDTO.Capacity,
                 HasProjector=createRoomDTO.HasProjector,
-                IsActive=createRoomDTO.IsActive
+                IsActive=createRoomDTO.IsActive,
+                Floor=createRoomDTO.Floor,
             };
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
             rooms.Add(room);
             return CreatedAtAction(nameof(Get), new { id = room.Id }, room);
         }
@@ -115,7 +114,8 @@ namespace cwiczenia6.Controllers
             room.Capacity = createRoomDTO.Capacity;
             room.HasProjector = createRoomDTO.HasProjector;
             room.IsActive = createRoomDTO.IsActive;
-            room.Capacity = createRoomDTO.Capacity;
+            room.BuildingCode = createRoomDTO.BuildingCode;
+            room.Floor = createRoomDTO.Floor;
             return Ok(room);
         }
 
@@ -126,6 +126,11 @@ namespace cwiczenia6.Controllers
             if (room == null)
             {
                 return NotFound();
+            }
+
+            if (ReservationsController.reservations.Any(x => x.RoomId == id))
+            {
+                return Conflict("There is already a reservation");
             }
             rooms.Remove(room);
             return NoContent();
